@@ -1,5 +1,8 @@
+using Api.Extensions;
+using Application.Extensions;
 using Application.Features.Users.Handlers;
 using Application.Interfaces;
+using Infrastructure.Extensions;
 using Infrastructure.Persistence;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
@@ -11,43 +14,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddDbContext<AdhikademyDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-
-var awsOptions = builder.Configuration.GetAWSOptions();
-
-builder.Services.AddDefaultAWSOptions(awsOptions);
-builder.Services.AddAWSService<Amazon.S3.IAmazonS3>();
-
-builder.Services.AddScoped<IPhotoService, S3PhotoService>();
-
-builder.Services.AddMediatR(cfg => {
-    cfg.RegisterServicesFromAssembly(typeof(RegisterUserHandler).Assembly);
-});
-
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
-    };
-});
+// Add Layers
+builder.Services.AddApplication();           // MediatR
+builder.Services.AddInfrastructure(builder.Configuration); // DB, Repos, AWS, S3
+builder.Services.AddJwtAuthentication(builder.Configuration); // JWT & Auth
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();

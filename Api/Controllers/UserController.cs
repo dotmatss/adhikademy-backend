@@ -33,28 +33,19 @@ namespace Api.Controllers
             return Ok(new { token });
         }
 
-        [Authorize]
-        [HttpGet("profile")]
-        public IActionResult Profile()
-        {
-            var userId = User.Claims.First(c => c.Type == "sub").Value;
-            var email = User.Claims.First(c => c.Type == "email").Value;
-            return Ok(new { userId, email });
-        }
-
         [HttpPost("{id}/photo")]
         [Authorize]
         public async Task<IActionResult> UploadPhoto(int id, IFormFile file, [FromServices] IPhotoService photoService)
         {
-            // 1. Basic Validation
+            // Validation
             if (file == null || file.Length == 0) return BadRequest("No file uploaded");
 
-            // 2. Upload to Cloud/Storage
+            // Upload to Cloud/Storage
             using var stream = file.OpenReadStream();
             var fileName = $"{Guid.NewGuid()}_{file.FileName}";
             var url = await photoService.UploadProfilePhotoAsync(stream, fileName);
 
-            // 3. Send Command to update DB via MediatR
+            // Send Command to update DB via MediatR
             var result = await _mediator.Send(new UpdateUserPhotoCommand(id, url));
 
             return result ? Ok(new { url }) : BadRequest("Could not update profile photo.");
